@@ -22,22 +22,21 @@ namespace Picture_to_Continuous_Line
         public static int blocks = 0;
         [STAThread]
         static void Main(string[] args)
-        {           
+        {
             OpenFileDialog fd = new OpenFileDialog();
             fd.ShowDialog();
             string filePath = fd.FileName;
             Image startImg = Image.FromFile(filePath);
             Console.WriteLine("File Read Successfully");
             Console.WriteLine($"Dimensions {startImg.Width} x {startImg.Height}");
-            Console.WriteLine($"Post-modifier {startImg.Width * scaleMod} x {startImg.Height * scaleMod}");
             Console.Write("Scale: ");
             scaleMultiplier = Convert.ToInt32(Console.ReadLine()) * scaleMod;
             Console.Write("Lines per block row: ");
-            lineSkip = Convert.ToInt32(Console.ReadLine());            
+            lineSkip = Convert.ToInt32(Console.ReadLine());
             Image img = ResizeImage(startImg, GetNearestWholeMultiple(startImg.Width, square) * scaleMultiplier, GetNearestWholeMultiple(startImg.Height, square) * scaleMultiplier);
             Bitmap bitmapProcessing = new Bitmap(img);
             Bitmap bitmapResult = new Bitmap(img.Width, img.Height, img.PixelFormat);
-            
+
             Graphics graphics = Graphics.FromImage(bitmapResult);
 
             SolidBrush brush = new SolidBrush(Color.White);
@@ -50,26 +49,26 @@ namespace Picture_to_Continuous_Line
             int width = bitmapProcessing.Width;
             int[,] avgArr = new int[bitmapProcessing.Width, bitmapProcessing.Height];
             Console.Title = "Spline Art";
-            Console.WriteLine("Pixel Matrix size: {0} x {1}", width, height);
+            Console.WriteLine($"Pixel Matrix size: {width} x {height}");
             int area = width * height;
             blocks = area / (square * square);
-            for (int x = 0; x < width; x++) // Generates the 
+
+            for (int y = 0; y < height; y++) // Generates the 
             {
-                for (int y = 0; y < height; y++)
+                for (int x = 0; x < width; x++)
                 {
-                    Color color = bitmapProcessing.GetPixel(x, y);
+                    //Color color = bitmapProcessing.GetPixel(x, y);
                     //Luminocity
                     //avgArr[x, y] = (int)((0.21 * color.R) + (0.72 * color.G) + (0.07 * color.B));
                     //Average
-                    avgArr[x, y] = (int)(color.R + color.G + color.B) / 3;
+                    avgArr[x, y] = (int)(bitmapProcessing.GetPixel(x, y).GetBrightness() * 255);
                     //Lightness
                     //avgArr[x, y] = (int)(Math.Max(color.R,Math.Max(color.G,color.B)) + 
                     //                     Math.Min(color.R, Math.Min(color.G, color.B)))/2;
-
-                    pixelCount++;
-                    Console.Write($"\rPixels read: {pixelCount}/{area}  %{Math.Round((double)((double)pixelCount/(double)area * 100), 0)}");
                 }
+                Console.Write($"\rComplete: %{Math.Round((double)((double)y / (double)bitmapProcessing.Height*100), 0)}");
             }
+
             Console.WriteLine();
             var pointMap = generatePointMap(avgArr);
             var whitePen = new Pen(Color.Black, 1);
@@ -77,14 +76,14 @@ namespace Picture_to_Continuous_Line
             {
                 Point[] p = pointMap.ElementAt(j);
                 Point[] points = new Point[2];
-                for(int i = 0; i < p.Length-3;)
+                for (int i = 0; i < p.Length - 3;)
                 {
-                    if((p.ElementAt(i).X + 1 == p.ElementAt(i+1).X) && (p.ElementAt(i).X != 0 & p.ElementAt(i).Y != 0))
+                    if ((p.ElementAt(i).X + 1 == p.ElementAt(i + 1).X) && (p.ElementAt(i).X != 0 & p.ElementAt(i).Y != 0))
                     {
                         points[0] = p.ElementAt(i);
-                        points[1] = p.ElementAt(i+1);
+                        points[1] = p.ElementAt(i + 1);
                     }
-                    else if((p.ElementAt(i).X == 0) && (p.ElementAt(i).Y == 0))
+                    else if ((p.ElementAt(i).X == 0) && (p.ElementAt(i).Y == 0))
                     {
                         points[0] = p.ElementAt(i);
                         points[1] = p.ElementAt(i);
@@ -93,7 +92,7 @@ namespace Picture_to_Continuous_Line
                     i += 1;
                 }
                 j += lineSkip;
-                Console.Write($"\rPopulating line segment {j}/{pointMap.Count}  %{Math.Round((double)((double)pointMap.Count / (double)j * 100), 0)}");
+                Console.Write($"\rPopulating line segment {j}/{pointMap.Count}  %{Math.Round((double)((double)j * 100) / (double)pointMap.Count, 0)}");
             }
             ResizeImage(bitmapResult, img.Width, img.Height);
             bitmapResult.Save(@"C:\Users\chris\Desktop\test4.png");
@@ -101,12 +100,12 @@ namespace Picture_to_Continuous_Line
             Console.Read();
         }
 
-        static List<Point[]> generatePointMap (int[,] inputArr)
-        {            
+        static List<Point[]> generatePointMap(int[,] inputArr)
+        {
             int blocksWide = (int)Math.Floor((double)inputArr.GetLength(0) / square);
             int blocksTall = (int)Math.Floor((double)inputArr.GetLength(1) / square);
 
-            List<Point[]> resultList = new List<Point[]>();            
+            List<Point[]> resultList = new List<Point[]>();
 
             for (int height = 0; height < blocksTall; height++) //Cycles through inputArr by height in blocks
             {
@@ -115,24 +114,22 @@ namespace Picture_to_Continuous_Line
                 var rslt = new List<Point>();
                 for (int width = 0; width < blocksWide; width++) //Cycles through inputArr by width in blocks
                 {
-                    blocksProc++;
                     int[,] tempArr = new int[square, square];
                     for (int y = 0; y < square; y++)
                     {
-                        for(int x = 0; x < square;x++)
+                        for (int x = 0; x < square; x++)
                         {
                             tempArr[x, y] = inputArr[width * square + x, height * square + y];
-                        }                        
+                        }
                     }
 
                     int pixelAvg = 0;
-                    foreach(int i in tempArr) //Cycles through pixels in {square} by {square} grid
+                    foreach (int i in tempArr) //Cycles through pixels in {square} by {square} grid
                     {
                         pixelAvg += i;
                     }
                     pixelAvg = pixelAvg / (square * square);
 
-                    Console.Write($"\rProcessing Block {blocksProc} of {blocks}  %{Math.Round((double)((double)blocksProc / (double)blocks * 100), 0)}");
                     rslt.AddRange(generateSplineData(pixelAvg, square, width, height));
 
                     for (int x = 0; x < rslt.Count; x++)
@@ -145,7 +142,10 @@ namespace Picture_to_Continuous_Line
                     }
                     extraPixels++;
                 }
-                if(rslt.ToArray().Length > 0)
+
+                Console.Write($"\rProcessing Blocks: %{Math.Round((double)((double)height / (double)blocksTall * 100), 0)}");
+                
+                if (rslt.ToArray().Length > 0)
                     resultList.Add(rslt.ToArray());
             }
             Console.WriteLine();
@@ -154,7 +154,7 @@ namespace Picture_to_Continuous_Line
 
         public static List<Point> generateSplineData(int average, int square, int blkWidth, int blkHeight)
         {
-            int[] heightMap = {11, 10, 9, 8, 7, 6, 5 ,4, 3, 2, 1, 0, 0};
+            int[] heightMap = { 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0, 0 };
             //int[] heightMap = { 6, 5, 4, 3, 2, 2, 1, 1, 1, 0 };
             //int[] heightMap = { 0, 0, 1, 1, 2, 4, 5 }; //Inverted
 
@@ -203,7 +203,7 @@ namespace Picture_to_Continuous_Line
                 using (var wrapMode = new ImageAttributes())
                 {
                     wrapMode.SetWrapMode(WrapMode.TileFlipXY);
-                     graphics.DrawImage(image, destRect, 0, 0, image.Width, image.Height, GraphicsUnit.Pixel, wrapMode);
+                    graphics.DrawImage(image, destRect, 0, 0, image.Width, image.Height, GraphicsUnit.Pixel, wrapMode);
                 }
             }
             return destImage;
@@ -219,3 +219,4 @@ namespace Picture_to_Continuous_Line
         }
     }
 }
+    
